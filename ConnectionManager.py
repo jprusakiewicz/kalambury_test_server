@@ -1,6 +1,7 @@
 import json
-from typing import List
 import random
+from typing import List
+
 from starlette.websockets import WebSocket
 
 from player import Player
@@ -16,23 +17,34 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: List[Connection] = []
         self.is_game_on = False
-        self.game_data: List[bytes] = []
+        self.game_data: bytes = bytearray()
         self.whos_turn: int = 0
 
     async def connect(self, websocket: WebSocket, client_id):
         await websocket.accept()
         connection = Connection(ws=websocket, player=Player(id=client_id))
-        self.append_connection(connection)
+        await self.append_connection(connection)
         await websocket.send_text(self.get_game_state(client_id))
+        await websocket.send_bytes(self.game_data)
 
-    def append_connection(self, connection):
+    async def append_connection(self, connection):
         self.active_connections.append(connection)
-        if len(self.active_connections) > 1:
-            self.start_game()
+        if len(self.active_connections) > 1 and self.is_game_on is False:
+            await self.start_game()
 
-    def start_game(self):
+    async def restart_game(self):
+        self.game_data = bytearray()
+        await self.start_game()
+
+    async def start_game(self):
         self.is_game_on = True
         self.whos_turn = random.choice([connection.player.id for connection in self.active_connections])
+        await self.broadcast_json()
+
+    async def end_game(self):
+        self.is_game_on = False
+        self.whos_turn = 0
+        await self.broadcast_json()
 
     def disconnect(self, websocket: WebSocket):
         connection_with_given_ws = next(c for c in self.active_connections if c.ws == websocket)
@@ -41,13 +53,18 @@ class ConnectionManager:
     async def send_personal_message(self, message: str, websocket: WebSocket):
         await websocket.send_text(message)
 
+    async def broadcast_json(self):
+        for connection in self.active_connections:
+            gs = self.get_game_state(connection.player.id)
+            await connection.ws.send_text(gs)
+
     async def broadcast(self):
         for connection in self.active_connections:
-            await connection.ws.send_text(self.get_game_state(connection.player.id))
+            await connection.ws.send_bytes(self.game_data)
 
     async def handle_message(self, message, client_id):
         try:
-            if message["id"] == client_id:
+            if client_id == self.whos_turn:
                 self.game_data = message['bytes']
                 await self.broadcast()
         except KeyError as e:
@@ -60,14 +77,14 @@ class ConnectionManager:
             game_state = {
                 "is_game_on": self.is_game_on,
                 "whos_turn": self.whos_turn,
-                "game_data": self.game_data,
+                "game_data": self.game_data.decode('ISO-8859-1'),
                 "sequence_to_guess": player.player_data
             }
         else:
             game_state = {
                 "is_game_on": self.is_game_on,
                 "whos_turn": self.whos_turn,
-                "game_data": self.game_data
+                "game_data": self.game_data.decode('ISO-8859-1')
             }
 
         return json.dumps(game_state)
