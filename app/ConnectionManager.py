@@ -4,7 +4,7 @@ from typing import List
 
 from starlette.websockets import WebSocket
 
-from player import Player
+from app.player import Player
 
 
 class Connection:
@@ -38,7 +38,7 @@ class ConnectionManager:
 
     async def start_game(self):
         self.is_game_on = True
-        self.whos_turn = random.choice([connection.player.id for connection in self.active_connections])
+        self.whos_turn = random.choice([connection.player.id for connection in self.active_connections]) #todo if no enough players
         await self.broadcast_json()
 
     async def end_game(self):

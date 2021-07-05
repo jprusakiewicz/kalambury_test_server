@@ -4,7 +4,7 @@ import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from starlette.responses import JSONResponse
 
-from ConnectionManager import ConnectionManager
+from app.ConnectionManager import ConnectionManager
 
 app = FastAPI()
 
@@ -62,8 +62,9 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int):
         print("disconnected")
         await manager.disconnect(websocket)
         await manager.broadcast()
-    except RuntimeError:
+    except RuntimeError as e:
         await manager.disconnect(websocket)
+        print(e)
         print("runetime error")
 
 
@@ -76,4 +77,4 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=5000)
+    uvicorn.run(app, host="0.0.0.0", port=80, workers=1)
