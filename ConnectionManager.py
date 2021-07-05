@@ -46,9 +46,11 @@ class ConnectionManager:
         self.whos_turn = 0
         await self.broadcast_json()
 
-    def disconnect(self, websocket: WebSocket):
+    async def disconnect(self, websocket: WebSocket):
         connection_with_given_ws = next(c for c in self.active_connections if c.ws == websocket)
         self.active_connections.remove(connection_with_given_ws)
+        if len(self.active_connections) <= 1:
+            await self.end_game()
 
     async def send_personal_message(self, message: str, websocket: WebSocket):
         await websocket.send_text(message)

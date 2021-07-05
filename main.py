@@ -13,10 +13,17 @@ manager = ConnectionManager()
 
 @app.get("/")
 async def get():
-    return {"hello": "world"}
+    return {"status": "ok"}
 
 
-@app.post("/end_game")
+@app.get("/stats")
+async def get():
+    return {"is_game_on": manager.is_game_on,
+            "whos turn": manager.whos_turn,
+            "number_of_connected_players": len(manager.active_connections)}
+
+
+@app.post("/game/end")
 async def end_game():
     await manager.end_game()
     return JSONResponse(
@@ -25,7 +32,7 @@ async def end_game():
     )
 
 
-@app.post("/start_game")
+@app.post("/game/start")
 async def end_game():
     await manager.start_game()
     return JSONResponse(
@@ -34,7 +41,7 @@ async def end_game():
     )
 
 
-@app.post("/restart_game")
+@app.post("/game/restart")
 async def end_game():
     await manager.restart_game()
     return JSONResponse(
@@ -53,9 +60,10 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int):
             await manager.handle_message(message, client_id)
     except WebSocketDisconnect:
         print("disconnected")
-        manager.disconnect(websocket)
+        await manager.disconnect(websocket)
         await manager.broadcast()
     except RuntimeError:
+        await manager.disconnect(websocket)
         print("runetime error")
 
 
