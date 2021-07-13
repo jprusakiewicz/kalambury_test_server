@@ -1,10 +1,12 @@
 import os
+from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Body, HTTPException
 from starlette.responses import JSONResponse
 
-from app.ConnectionManager import ConnectionManager
+from app.connection_manager import ConnectionManager
+from app.models import GuessResult, PlayerGuess
 
 app = FastAPI()
 
@@ -16,11 +18,21 @@ async def get():
     return {"status": "ok"}
 
 
+@app.post("/guess", response_model=GuessResult, tags=["Pawel"])
+async def make_a_guess(player_guess: PlayerGuess = Body(..., description="a guess written by player")):
+    try:
+        response = await manager.handle_players_guess(player_guess)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"The game in room {player_guess.room_id} is not started")
+    return response
+
+
 @app.get("/stats")
-async def get():
+async def get_stats(room_id: Optional[str] = None):
     return {"is_game_on": manager.is_game_on,
             "whos turn": manager.whos_turn,
-            "number_of_connected_players": len(manager.active_connections)}
+            "number_of_connected_players": len(manager.active_connections),
+            "clue": manager.clue}
 
 
 @app.post("/game/end")
@@ -33,7 +45,7 @@ async def end_game():
 
 
 @app.post("/game/start")
-async def end_game():
+async def start_game():
     await manager.start_game()
     return JSONResponse(
         status_code=200,
@@ -42,7 +54,7 @@ async def end_game():
 
 
 @app.post("/game/restart")
-async def end_game():
+async def restart_game():
     await manager.restart_game()
     return JSONResponse(
         status_code=200,
@@ -52,20 +64,26 @@ async def end_game():
 
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: int):
-    await manager.connect(websocket, client_id)
-    print(f"new client connected with id: {client_id}")
-    try:
-        while True:
-            message = await websocket.receive()
-            await manager.handle_message(message, client_id)
-    except WebSocketDisconnect:
-        print("disconnected")
-        await manager.disconnect(websocket)
-        await manager.broadcast()
-    except RuntimeError as e:
-        await manager.disconnect(websocket)
-        print(e)
-        print("runetime error")
+    if client_id not in [c.player.id for c in manager.active_connections]:
+
+        await manager.connect(websocket, client_id)
+        print(f"new client connected with id: {client_id}")
+
+        try:
+            while True:
+                message = await websocket.receive()
+                await manager.handle_ws_message(message, client_id)
+        except WebSocketDisconnect:
+            print("disconnected")
+            await manager.disconnect(websocket)
+            await manager.broadcast()
+        except RuntimeError as e:
+            await manager.disconnect(websocket)
+            print(e)
+            print("runetime error")
+    else:
+        print(f"{client_id} already taken")
+        await websocket.close(403)
 
 
 @app.websocket("/ws_test")

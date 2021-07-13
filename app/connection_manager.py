@@ -4,7 +4,10 @@ from typing import List
 
 from starlette.websockets import WebSocket
 
+from app.models import PlayerGuess, GuessResult
 from app.player import Player
+
+CLUES = ['pies', 'kot', 'Ala']
 
 
 class Connection:
@@ -19,6 +22,16 @@ class ConnectionManager:
         self.is_game_on = False
         self.game_data: bytes = bytearray()
         self.whos_turn: int = 0
+        self.clue = None
+
+    async def handle_players_guess(self, player_guess: PlayerGuess):
+        if self.is_game_on == False:
+            raise FileNotFoundError #todo
+        if player_guess.message == self.clue:
+            await self.restart_game()
+            return GuessResult(status="WIN", clue=self.clue)
+        else:
+            return GuessResult(status="MISS")
 
     async def connect(self, websocket: WebSocket, client_id):
         await websocket.accept()
@@ -29,7 +42,7 @@ class ConnectionManager:
 
     async def append_connection(self, connection):
         self.active_connections.append(connection)
-        if len(self.active_connections) > 1 and self.is_game_on is False:
+        if len(self.active_connections) > 0 and self.is_game_on is False:  # todo
             await self.start_game()
 
     async def restart_game(self):
@@ -38,12 +51,15 @@ class ConnectionManager:
 
     async def start_game(self):
         self.is_game_on = True
-        self.whos_turn = random.choice([connection.player.id for connection in self.active_connections]) #todo if no enough players
+        self.whos_turn = random.choice(
+            [connection.player.id for connection in self.active_connections])  # todo if no enough players
+        self.clue = random.choice(CLUES)
         await self.broadcast_json()
 
     async def end_game(self):
         self.is_game_on = False
         self.whos_turn = 0
+        self.clue = None
         await self.broadcast_json()
 
     async def disconnect(self, websocket: WebSocket):
@@ -64,7 +80,7 @@ class ConnectionManager:
         for connection in self.active_connections:
             await connection.ws.send_bytes(self.game_data)
 
-    async def handle_message(self, message, client_id):
+    async def handle_ws_message(self, message, client_id):
         try:
             if client_id == self.whos_turn:
                 self.game_data = message['bytes']
