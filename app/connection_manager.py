@@ -6,6 +6,7 @@ from starlette.websockets import WebSocket
 
 from app.models import PlayerGuess, GuessResult
 from app.player import Player
+from fuzzywuzzy import fuzz
 
 CLUES = ['pies', 'kot', 'Ala']
 
@@ -24,12 +25,16 @@ class ConnectionManager:
         self.whos_turn: int = 0
         self.clue = None
 
-    async def handle_players_guess(self, player_guess: PlayerGuess):
+    async def handle_players_guess(self, player_guess: PlayerGuess, score_thresh=60):
+        score = fuzz.ratio(player_guess.message, self.clue)
+
         if self.is_game_on == False:
             raise FileNotFoundError #todo
         if player_guess.message == self.clue:
             await self.restart_game()
             return GuessResult(status="WIN", clue=self.clue)
+        elif score > score_thresh:
+            return GuessResult(status="IS_CLOSE")
         else:
             return GuessResult(status="MISS")
 
