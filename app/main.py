@@ -7,6 +7,7 @@ from starlette.responses import JSONResponse
 
 from app.connection_manager import ConnectionManager
 from app.models import GuessResult, PlayerGuess
+from app.server_errors import GameNotStarted, IdAlreadyInUse
 
 app = FastAPI()
 
@@ -22,7 +23,7 @@ async def get():
 async def make_a_guess(player_guess: PlayerGuess = Body(..., description="a guess written by player")):
     try:
         response = await manager.handle_players_guess(player_guess)
-    except FileNotFoundError:
+    except GameNotStarted:
         raise HTTPException(status_code=404, detail=f"The game in room {player_guess.room_id} is not started")
     return response
 
@@ -63,9 +64,8 @@ async def restart_game():
 
 
 @app.websocket("/ws/{client_id}")
-async def websocket_endpoint(websocket: WebSocket, client_id: int):
-    if client_id not in [c.player.id for c in manager.active_connections]:
-
+async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    try:
         await manager.connect(websocket, client_id)
         print(f"new client connected with id: {client_id}")
 
@@ -81,8 +81,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int):
             await manager.disconnect(websocket)
             print(e)
             print("runetime error")
-    else:
-        print(f"{client_id} already taken")
+    except IdAlreadyInUse:
+        print(f"Theres already connection with this client id {client_id}")
         await websocket.close(403)
 
 
@@ -96,3 +96,4 @@ async def websocket_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=80, workers=1)
+

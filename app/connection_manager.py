@@ -2,11 +2,12 @@ import json
 import random
 from typing import List
 
+from fuzzywuzzy import fuzz
 from starlette.websockets import WebSocket
 
 from app.models import PlayerGuess, GuessResult
 from app.player import Player
-from fuzzywuzzy import fuzz
+from app.server_errors import GameNotStarted, IdAlreadyInUse
 
 CLUES = ['pies', 'kot', 'Ala']
 
@@ -28,8 +29,8 @@ class ConnectionManager:
     async def handle_players_guess(self, player_guess: PlayerGuess, score_thresh=60):
         score = fuzz.ratio(player_guess.message, self.clue)
 
-        if self.is_game_on == False:
-            raise FileNotFoundError #todo
+        if not self.is_game_on:
+            raise GameNotStarted
         if player_guess.message == self.clue:
             await self.restart_game()
             return GuessResult(status="WIN", clue=self.clue)
@@ -38,7 +39,8 @@ class ConnectionManager:
         else:
             return GuessResult(status="MISS")
 
-    async def connect(self, websocket: WebSocket, client_id):
+    async def connect(self, websocket: WebSocket, client_id: str):
+        self.validate_client_id(client_id)
         await websocket.accept()
         connection = Connection(ws=websocket, player=Player(id=client_id))
         await self.append_connection(connection)
@@ -47,17 +49,16 @@ class ConnectionManager:
 
     async def append_connection(self, connection):
         self.active_connections.append(connection)
-        if len(self.active_connections) > 0 and self.is_game_on is False:  # todo
+        if len(self.active_connections) > 0 and self.is_game_on is False:  # todo change to 1
             await self.start_game()
 
     async def restart_game(self):
-        self.game_data = bytearray()
         await self.start_game()
 
     async def start_game(self):
+        self.game_data = bytearray()
         self.is_game_on = True
-        self.whos_turn = random.choice(
-            [connection.player.id for connection in self.active_connections])  # todo if no enough players
+        self.whos_turn = self.draw_random_id()
         self.clue = random.choice(CLUES)
         await self.broadcast_json()
 
@@ -68,13 +69,10 @@ class ConnectionManager:
         await self.broadcast_json()
 
     async def disconnect(self, websocket: WebSocket):
-        connection_with_given_ws = next(c for c in self.active_connections if c.ws == websocket)
+        connection_with_given_ws = self.get_active_connection(websocket)
         self.active_connections.remove(connection_with_given_ws)
         if len(self.active_connections) <= 1:
             await self.end_game()
-
-    async def send_personal_message(self, message: str, websocket: WebSocket):
-        await websocket.send_text(message)
 
     async def broadcast_json(self):
         for connection in self.active_connections:
@@ -111,3 +109,15 @@ class ConnectionManager:
             }
 
         return json.dumps(game_state)
+
+    def get_active_connection(self, websocket: WebSocket):
+        connection_with_given_ws = next(c for c in self.active_connections if c.ws == websocket)
+        return connection_with_given_ws
+
+    def draw_random_id(self):
+        return random.choice(
+            [connection.player.id for connection in self.active_connections])
+
+    def validate_client_id(self, client_id: str):
+        if client_id in [c.player.id for c in self.active_connections]:
+            raise IdAlreadyInUse
