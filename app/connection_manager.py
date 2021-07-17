@@ -42,7 +42,7 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket, client_id: str):
         self.validate_client_id(client_id)
         await websocket.accept()
-        connection = Connection(ws=websocket, player=Player(id=client_id))
+        connection = Connection(ws=websocket, player=Player(player_id=client_id))
         await self.append_connection(connection)
         await websocket.send_text(self.get_game_state(client_id))
         await websocket.send_bytes(self.game_data)
