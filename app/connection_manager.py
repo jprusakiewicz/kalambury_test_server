@@ -1,22 +1,15 @@
 from starlette.websockets import WebSocket
 
+from app.connection import Connection
 from app.models import PlayerGuess
 from app.player import Player
 from app.room import Room
 from app.server_errors import PlayerIdAlreadyInUse, NoRoomWithThisId, RoomIdAlreadyInUse
 
-CLUES = ['pies', 'kot', 'Ala']
-
-
-class Connection:
-    def __init__(self, ws: WebSocket, player: Player):
-        self.ws = ws
-        self.player = player
-
 
 class ConnectionManager:
     def __init__(self):
-        self.rooms = [Room(room_id="2")]
+        self.rooms = [Room(room_id="1")]
 
     def get_room(self, room_id):
         try:

@@ -4,10 +4,11 @@ from typing import List
 
 from fuzzywuzzy import fuzz
 
-from app.connection_manager import Connection, CLUES
-from app.models import PlayerGuess, GuessResult
-from app.server_errors import GameNotStarted
+from .connection import Connection
+from .models import PlayerGuess, GuessResult
+from .server_errors import GameNotStarted
 
+CLUES = ['pies', 'kot', 'Ala']
 
 class Room:
     def __init__(self, room_id):
