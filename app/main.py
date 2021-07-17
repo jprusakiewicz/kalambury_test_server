@@ -1,4 +1,3 @@
-import os
 from typing import Optional
 
 import uvicorn
@@ -7,7 +6,7 @@ from starlette.responses import JSONResponse
 
 from app.connection_manager import ConnectionManager
 from app.models import GuessResult, PlayerGuess
-from app.server_errors import GameNotStarted, IdAlreadyInUse
+from app.server_errors import GameNotStarted, PlayerIdAlreadyInUse, NoRoomWithThisId, RoomIdAlreadyInUse
 
 app = FastAPI()
 
@@ -30,70 +29,107 @@ async def make_a_guess(player_guess: PlayerGuess = Body(..., description="a gues
 
 @app.get("/stats")
 async def get_stats(room_id: Optional[str] = None):
-    return {"is_game_on": manager.is_game_on,
-            "whos turn": manager.whos_turn,
-            "number_of_connected_players": len(manager.active_connections),
-            "clue": manager.clue}
+    if room_id:
+        return manager.get_room_stats(room_id)
+    return manager.get_overall_stats()
 
 
-@app.post("/game/end")
-async def end_game():
-    await manager.end_game()
-    return JSONResponse(
-        status_code=200,
-        content={"detail": "success"}
-    )
-
-
-@app.post("/game/start")
-async def start_game():
-    await manager.start_game()
-    return JSONResponse(
-        status_code=200,
-        content={"detail": "success"}
-    )
-
-
-@app.post("/game/restart")
-async def restart_game():
-    await manager.restart_game()
-    return JSONResponse(
-        status_code=200,
-        content={"detail": "success"}
-    )
-
-
-@app.websocket("/ws/{client_id}")
-async def websocket_endpoint(websocket: WebSocket, client_id: str):
+@app.post("/room/new/{room_id}")
+async def end_game(room_id: str):
     try:
-        await manager.connect(websocket, client_id)
+        await manager.create_new_room(room_id)
+        return JSONResponse(
+            status_code=200,
+            content={"detail": "success"}
+        )
+    except RoomIdAlreadyInUse:
+        print(f"Theres already a room with this id: {room_id}")
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Theres already a room with this id: {room_id}"}
+        )
+
+
+
+@app.delete("/room/{room_id}")
+async def end_game(room_id: str):
+    try:
+        await manager.delete_room(room_id)
+        return JSONResponse(
+            status_code=200,
+            content={"detail": "success"}
+        )
+    except NoRoomWithThisId:
+        print(f"Theres no room with this id: {room_id}")
+        return JSONResponse(
+            status_code=403,
+            content={"detail": f"Theres no room with this id: {room_id}"}
+        )
+
+
+
+@app.post("/game/end/{room_id}")
+async def end_game(room_id: str):
+    await manager.end_game(room_id)
+    return JSONResponse(
+        status_code=200,
+        content={"detail": "success"}
+    )
+
+
+@app.post("/game/end_all_games")
+async def end_game():
+    await manager.end_all_games()
+    return JSONResponse(
+        status_code=200,
+        content={"detail": "success"}
+    )
+
+
+@app.post("/game/start/{room_id}")
+async def start_game(room_id: str):
+    await manager.start_game(room_id)
+    return JSONResponse(
+        status_code=200,
+        content={"detail": "success"}
+    )
+
+
+@app.post("/game/restart/{room_id}")
+async def restart_game(room_id: str):
+    await manager.restart_game(room_id)
+    return JSONResponse(
+        status_code=200,
+        content={"detail": "success"}
+    )
+
+
+@app.websocket("/ws/{room_id}/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, room_id: str, client_id: str):
+    try:
+        await manager.connect(websocket, room_id, client_id)
         print(f"new client connected with id: {client_id}")
 
         try:
             while True:
                 message = await websocket.receive()
-                await manager.handle_ws_message(message, client_id)
+                await manager.handle_ws_message(message, room_id, client_id)
         except WebSocketDisconnect:
             print("disconnected")
             await manager.disconnect(websocket)
-            await manager.broadcast()
+            await manager.broadcast(room_id)
         except RuntimeError as e:
             await manager.disconnect(websocket)
             print(e)
             print("runetime error")
-    except IdAlreadyInUse:
+    except PlayerIdAlreadyInUse:
         print(f"Theres already connection with this client id {client_id}")
         await websocket.close(403)
 
-
-@app.websocket("/ws_test")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    while True:
-        test_byte = bytes(os.urandom(2190000))
-        await websocket.send_bytes(test_byte)
+    except NoRoomWithThisId:
+        print(f"Theres no room with this id: {room_id}")
+        await websocket.close(403)
 
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=80, workers=1)
-

@@ -8,6 +8,16 @@ class GameNotStarted(WsServerError):
         self.message = 'The game in this room is not started'
 
 
-class IdAlreadyInUse(WsServerError):
+class PlayerIdAlreadyInUse(WsServerError):
     def __init__(self):
         self.message = 'Theres already connection with this id'
+
+
+class NoRoomWithThisId(WsServerError):
+    def __init__(self):
+        self.message = 'Theres no room with this id'
+
+
+class RoomIdAlreadyInUse(WsServerError):
+    def __init__(self):
+        self.message = 'Theres already room with this id'
