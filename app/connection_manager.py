@@ -53,13 +53,13 @@ class ConnectionManager:
     async def broadcast(self, room_id):
         room = self.get_room(room_id)
         for connection in room.active_connections:
-            await connection.ws.send_bytes(self.game_data)
+            await connection.ws.send_bytes(room.game_data)
 
     async def handle_ws_message(self, message, room_id, client_id):
         room = self.get_room(room_id)
         try:
             if client_id == room.whos_turn:
-                self.game_data = message['bytes']
+                room.game_data = message['bytes']
                 await self.broadcast(room_id)
         except KeyError as e:
             print(e)

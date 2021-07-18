@@ -50,7 +50,6 @@ async def end_game(room_id: str):
         )
 
 
-
 @app.delete("/room/{room_id}")
 async def end_game(room_id: str):
     try:
@@ -65,7 +64,6 @@ async def end_game(room_id: str):
             status_code=403,
             content={"detail": f"Theres no room with this id: {room_id}"}
         )
-
 
 
 @app.post("/game/end/{room_id}")

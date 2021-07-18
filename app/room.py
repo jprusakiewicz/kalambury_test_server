@@ -10,6 +10,7 @@ from .server_errors import GameNotStarted
 
 CLUES = ['pies', 'kot', 'Ala']
 
+
 class Room:
     def __init__(self, room_id):
         self.id = room_id
