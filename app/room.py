@@ -73,7 +73,7 @@ class Room:
                 "is_game_on": self.is_game_on,
                 "whos_turn": self.whos_turn,
                 "game_data": self.game_data.decode('ISO-8859-1'),
-                "sequence_to_guess": player.player_data
+                "sequence_to_guess": self.clue
             }
         else:
             game_state = {
