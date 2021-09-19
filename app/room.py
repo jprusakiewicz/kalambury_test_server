@@ -24,11 +24,13 @@ class Room:
 
     async def append_connection(self, connection):
         self.active_connections.append(connection)
+        self.export_room_status()
         if len(self.active_connections) > 1 and self.is_game_on is False:  # todo waiting text
             await self.start_game()
 
     async def remove_connection(self, connection_with_given_ws):
         self.active_connections.remove(connection_with_given_ws)
+        self.export_room_status()
         if len(self.active_connections) <= 1:
             await self.end_game()
         if connection_with_given_ws.player.id == self.whos_turn:
