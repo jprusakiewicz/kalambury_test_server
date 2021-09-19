@@ -19,3 +19,5 @@ class PlayerGuess(BaseModel):
 class GuessResult(BaseModel):
     status: GuessStatus
     clue: Optional[str]
+    winner: Optional[str]
+    drawer: Optional[str]
