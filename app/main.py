@@ -30,7 +30,13 @@ async def make_a_guess(player_guess: PlayerGuess = Body(..., description="a gues
 @app.get("/stats")
 async def get_stats(room_id: Optional[str] = None):
     if room_id:
-        return manager.get_room_stats(room_id)
+        try:
+            return manager.get_room_stats(room_id)
+        except NoRoomWithThisId:
+            return JSONResponse(
+                status_code=403,
+                content={"detail": f"No room with this id: {room_id}"}
+            )
     return manager.get_overall_stats()
 
 
