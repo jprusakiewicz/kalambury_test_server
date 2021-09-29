@@ -33,10 +33,10 @@ class ConnectionManager:
         for room in self.rooms:
             await room.end_game()
 
-    async def connect(self, websocket: WebSocket, room_id: str, client_id: str):
+    async def connect(self, websocket: WebSocket, room_id: str, client_id: str, nick: str):
         self.validate_client_id(room_id, client_id)
         await websocket.accept()
-        connection = Connection(ws=websocket, player=Player(player_id=client_id))
+        connection = Connection(ws=websocket, player=Player(player_id=client_id, nick=nick))
         await self.append_connection(room_id, connection)
         room = self.get_room(room_id)
         await websocket.send_text(room.get_game_state(client_id))

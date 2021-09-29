@@ -7,4 +7,6 @@ RUN pip install -r requirements.txt
 EXPOSE 80
 COPY ./app /app
 ENV PYTHONPATH=/
-ENV EXPORT_RESULTS_URL="https://backend-dev.capgemini.enl-projects.com/games/handle-results/kalambury"
+ENV EXPORT_RESULTS_URL="https://backend-dev.capgemini.enl-projects.com"
+ENV TIMEOUT_SECONDS=75
+

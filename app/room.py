@@ -1,6 +1,9 @@
+import asyncio
 import json
 import os
 import random
+import threading
+from datetime import datetime, timedelta
 from typing import List
 
 import requests
@@ -21,11 +24,23 @@ class Room:
         self.game_data: bytes = bytearray()
         self.whos_turn: int = 0
         self.clue = None
+        self.timeout = self.get_timeout()
+        self.timer = threading.Timer(self.timeout, self.next_person_async)
+
+    def get_timeout(self):
+        try:
+            timeout = float(os.path.join(os.getenv('TIMEOUT_SECONDS')))
+        except TypeError:
+            timeout = 15  # if theres no env var
+        return timeout
+
+    def next_person_async(self):
+        asyncio.run(self.restart_game())
 
     async def append_connection(self, connection):
         self.active_connections.append(connection)
         self.export_room_status()
-        if len(self.active_connections) > 1 and self.is_game_on is False:  # todo waiting text
+        if len(self.active_connections) > 1 and self.is_game_on is False:
             await self.start_game()
 
     async def remove_connection(self, connection_with_given_ws):
@@ -65,6 +80,7 @@ class Room:
         self.is_game_on = True
         self.whos_turn = self.draw_random_player_id()
         self.clue = random.choice(CLUES)
+        self.restart_timer()
         await self.broadcast_json()
 
     async def end_game(self):
@@ -78,15 +94,19 @@ class Room:
             game_state = {
                 "is_game_on": self.is_game_on,
                 "whos_turn": self.whos_turn,
+                "sequence_to_guess": self.clue,
                 "game_data": self.game_data.decode('ISO-8859-1'),
-                "sequence_to_guess": self.clue
+                "timestamp": self.timestamp.isoformat(),
             }
         else:
             game_state = {
                 "is_game_on": self.is_game_on,
                 "whos_turn": self.whos_turn,
+                "drawer": self.get_drawer_nick(),
                 "game_data": self.game_data.decode('ISO-8859-1')
             }
+            if self.is_game_on is True:
+                game_state["timestamp"] = self.timestamp.isoformat()
 
         return json.dumps(game_state)
 
@@ -99,6 +119,12 @@ class Room:
                 "whos turn": self.whos_turn,
                 "number_of_connected_players": len(self.active_connections),
                 "clue": self.clue}
+
+    def restart_timer(self):
+        self.timer.cancel()
+        self.timer = threading.Timer(self.timeout, self.next_person_async)
+        self.timer.start()
+        self.timestamp = datetime.now() + timedelta(0, self.timeout)
 
     def export_score(self):
         # do not need this
@@ -120,3 +146,12 @@ class Room:
         except Exception as e:
             print(e.__class__.__name__)
             print("failed to get EXPORT_RESULTS_URL env var")
+
+    def get_drawer_nick(self):
+        try:
+            player_nick = next(
+                connection.player.nick for connection in self.active_connections if connection.player.id == self.whos_turn)
+            drawer = "drawer: " + str(player_nick)
+        except StopIteration:
+            drawer = " "
+        return drawer
