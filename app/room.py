@@ -4,7 +4,7 @@ import os
 import random
 import threading
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, Optional
 
 import requests
 from fuzzywuzzy import fuzz
@@ -22,7 +22,7 @@ class Room:
         self.active_connections: List[Connection] = []
         self.is_game_on = False
         self.game_data: bytes = bytearray()
-        self.whos_turn: int = 0
+        self.whos_turn: Optional[str] = None
         self.clue = None
         self.timeout = self.get_timeout()
         self.timer = threading.Timer(self.timeout, self.next_person_async)
@@ -82,17 +82,16 @@ class Room:
         await self.start_game()
 
     async def start_game(self):
+        self.whos_turn = self.next_person_move()
         self.game_data = bytearray()
         self.is_game_on = True
-        self.whos_turn = self.draw_random_player_id()
         self.clue = random.choice(CLUES)
         self.restart_timer()
         await self.broadcast_json()
 
     async def end_game(self):
-        self.game_data = bytearray()
         self.is_game_on = False
-        self.whos_turn = 0
+        self.whos_turn = None
         self.clue = None
         await self.broadcast_json()
 
@@ -114,17 +113,30 @@ class Room:
             }
             if self.is_game_on is True:
                 game_state["timestamp"] = self.timestamp.isoformat()
-
         return json.dumps(game_state)
 
-    def draw_random_player_id(self):
-        return random.choice(
-            [connection.player.id for connection in self.active_connections])
+    def get_players_ids(self):
+        return [player.player.id for player in self.active_connections]
+
+    def next_person_move(self):
+        if self.whos_turn:
+            active_players_ids = self.get_players_ids()
+            try:
+                current_idx = active_players_ids.index(self.whos_turn)
+                new_id = active_players_ids[current_idx + 1]
+            except (IndexError, ValueError):
+                new_id = active_players_ids[0]
+
+        else:
+            players_ids = self.get_players_ids()
+            new_id = players_ids[0]
+        return new_id
 
     def get_stats(self):
         return {"is_game_on": self.is_game_on,
                 "whos turn": self.whos_turn,
                 "number_of_connected_players": len(self.active_connections),
+                "players_ids": self.get_players_ids(),
                 "clue": self.clue}
 
     def restart_timer(self):
@@ -139,7 +151,7 @@ class Room:
 
     def export_room_status(self):
         try:
-            players_in_game = [player.player.id for player in self.active_connections]
+            players_in_game = self.get_players_ids()
             result = requests.post(
                 url=os.path.join(os.getenv('EXPORT_RESULTS_URL'), "rooms/update-room-status"),
                 json=dict(roomId=self.id, activePlayers=players_in_game,
@@ -155,7 +167,8 @@ class Room:
     def get_drawer_nick(self):
         try:
             player_nick = next(
-                connection.player.nick for connection in self.active_connections if connection.player.id == self.whos_turn)
+                connection.player.nick for connection in self.active_connections if
+                connection.player.id == self.whos_turn)
             drawer = "drawer: " + str(player_nick)
         except StopIteration:
             drawer = " "
