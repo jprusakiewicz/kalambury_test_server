@@ -13,7 +13,7 @@ from .connection import Connection
 from .models import PlayerGuess, GuessResult
 from .server_errors import GameNotStarted
 
-CLUES = ['pies', 'kot', 'Ala', "Owocowe czwartki", "Homeoffice", "Pan kanapka"]
+CLUES = ['jeden', 'dwa', 'trzy', "cztery", "owocowe czwartki", "pan kanapka"]
 
 
 class Room:
@@ -29,13 +29,13 @@ class Room:
 
     def get_timeout(self):
         try:
-            timeout = float(os.path.join(os.getenv('TIMEOUT_SECONDS')))
+            timeout = int(os.getenv('TIMEOUT_SECONDS'))
         except TypeError:
             timeout = 15  # if theres no env var
         return timeout
 
     def next_person_async(self):
-        asyncio.run(self.restart_game())
+        asyncio.run(self.restart_or_end_game())
 
     async def append_connection(self, connection):
         self.active_connections.append(connection)
@@ -72,6 +72,12 @@ class Room:
             gs = self.get_game_state(connection.player.id)
             await connection.ws.send_text(gs)
 
+    async def restart_or_end_game(self):
+        if len(self.active_connections) >= 2:
+            await self.restart_game()
+        else:
+            await self.end_game()
+
     async def restart_game(self):
         await self.start_game()
 
@@ -84,6 +90,7 @@ class Room:
         await self.broadcast_json()
 
     async def end_game(self):
+        self.game_data = bytearray()
         self.is_game_on = False
         self.whos_turn = 0
         self.clue = None
@@ -127,14 +134,12 @@ class Room:
         self.timestamp = datetime.now() + timedelta(0, self.timeout)
 
     def export_score(self):
-        # do not need this
+        # todo
         ...
 
     def export_room_status(self):
         try:
-            players_in_game = []
-            for player in self.active_connections:
-                players_in_game.append(player.player.id)
+            players_in_game = [player.player.id for player in self.active_connections]
             result = requests.post(
                 url=os.path.join(os.getenv('EXPORT_RESULTS_URL'), "rooms/update-room-status"),
                 json=dict(roomId=self.id, activePlayers=players_in_game,
