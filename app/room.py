@@ -35,6 +35,7 @@ class Room:
         return timeout
 
     def next_person_async(self):
+        self.export_clue()
         asyncio.run(self.restart_or_end_game())
 
     async def append_connection(self, connection):
@@ -145,9 +146,18 @@ class Room:
         self.timer.start()
         self.timestamp = datetime.now() + timedelta(0, self.timeout)
 
-    def export_score(self):
-        # todo
-        ...
+    def export_clue(self):
+        try:
+            result = requests.post(
+                url=os.path.join(os.getenv('EXPORT_RESULTS_URL'), "/games/handle-timeout/kalambury"),
+                json=dict(roomId=self.id, clue=self.clue))
+            if result.status_code == 200:
+                print("timeout export succesfull")
+            else:
+                print("timeout export failed: ", result.text, result.status_code)
+        except Exception as e:
+            print(e.__class__.__name__)
+            print("failed to get EXPORT_RESULTS_URL env var")
 
     def export_room_status(self):
         try:
