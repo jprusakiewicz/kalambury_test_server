@@ -134,7 +134,7 @@ class Room:
 
     def get_stats(self):
         return {"is_game_on": self.is_game_on,
-                "whos turn": self.whos_turn,
+                "whos_turn": self.whos_turn,
                 "number_of_connected_players": len(self.active_connections),
                 "players_ids": self.get_players_ids(),
                 "clue": self.clue}
