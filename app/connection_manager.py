@@ -1,3 +1,5 @@
+import json
+
 from starlette.websockets import WebSocket
 
 from app.connection import Connection
@@ -9,7 +11,7 @@ from app.server_errors import PlayerIdAlreadyInUse, NoRoomWithThisId, RoomIdAlre
 
 class ConnectionManager:
     def __init__(self):
-        self.rooms = [Room(room_id="1")]
+        self.rooms = [Room(room_id="1", locale="pl")]
 
     def get_room(self, room_id):
         try:
@@ -59,7 +61,13 @@ class ConnectionManager:
         room = self.get_room(room_id)
         try:
             if client_id == room.whos_turn:
-                room.game_data = message['bytes']
+                if 'bytes' in message:
+                    room.game_data = message['bytes']
+                elif 'text' in message:
+                    await room.handle_text_message(json.loads(message['text']))
+                else:
+                    print("other")
+                    print(message)
                 await self.broadcast(room_id)
         except KeyError as e:
             print(e)
@@ -87,9 +95,9 @@ class ConnectionManager:
         return {'rooms_count': len(self.rooms),
                 'rooms_ids': [r.id for r in self.rooms]}
 
-    async def create_new_room(self, room_id):
+    async def create_new_room(self, room_id, locale: str = 'pl'):
         if room_id not in [room.id for room in self.rooms]:
-            self.rooms.append(Room(room_id=room_id))
+            self.rooms.append(Room(room_id=room_id, locale=locale))
         else:
             raise RoomIdAlreadyInUse
 

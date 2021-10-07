@@ -8,5 +8,4 @@ EXPOSE 80
 COPY ./app /app
 ENV PYTHONPATH=/
 ENV EXPORT_RESULTS_URL="https://backend-dev.capgemini.enl-projects.com"
-ENV TIMEOUT_SECONDS=75
 

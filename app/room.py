@@ -1,7 +1,6 @@
 import asyncio
 import json
 import os
-import random
 import threading
 from datetime import datetime, timedelta
 from typing import List, Optional
@@ -9,30 +8,25 @@ from typing import List, Optional
 import requests
 from fuzzywuzzy import fuzz
 
+from .clue import ClueManager
 from .connection import Connection
 from .models import PlayerGuess, GuessResult
 from .server_errors import GameNotStarted
 
-CLUES = ['jeden', 'dwa', 'trzy', "cztery", "owocowe czwartki", "pan kanapka"]
-
 
 class Room:
-    def __init__(self, room_id):
+    def __init__(self, room_id, locale):
         self.id = room_id
         self.active_connections: List[Connection] = []
         self.is_game_on = False
         self.game_data: bytes = bytearray()
         self.whos_turn: Optional[str] = None
         self.clue = None
-        self.timeout = self.get_timeout()
+        self.category = None
+        self.locale = locale
+        self.timeout = 120
         self.timer = threading.Timer(self.timeout, self.next_person_async)
-
-    def get_timeout(self):
-        try:
-            timeout = int(os.getenv('TIMEOUT_SECONDS'))
-        except TypeError:
-            timeout = 15  # if theres no env var
-        return timeout
+        self.clue_manager = ClueManager(self.locale)
 
     def next_person_async(self):
         self.export_clue()
@@ -86,7 +80,7 @@ class Room:
         self.whos_turn = self.next_person_move()
         self.game_data = bytearray()
         self.is_game_on = True
-        self.clue = random.choice(CLUES)
+        self.category, self.clue = self.clue_manager.get_new_clue()
         self.restart_timer()
         await self.broadcast_json()
 
@@ -94,6 +88,7 @@ class Room:
         self.is_game_on = False
         self.whos_turn = None
         self.clue = None
+        self.category = None
         await self.broadcast_json()
 
     def get_game_state(self, client_id) -> str:
@@ -109,7 +104,7 @@ class Room:
             game_state = {
                 "is_game_on": self.is_game_on,
                 "whos_turn": self.whos_turn,
-                "drawer": self.get_drawer_nick(),
+                "drawer": self.get_guesser_ui_text(),
                 "game_data": self.game_data.decode('ISO-8859-1')
             }
             if self.is_game_on is True:
@@ -174,12 +169,24 @@ class Room:
             print(e.__class__.__name__)
             print("failed to get EXPORT_RESULTS_URL env var")
 
-    def get_drawer_nick(self):
+    def get_guesser_ui_text(self):
         try:
             player_nick = next(
                 connection.player.nick for connection in self.active_connections if
                 connection.player.id == self.whos_turn)
-            drawer = "drawer: " + str(player_nick)
+            text = "drawer: " + str(player_nick) + f"\ncategory: {self.category}"
         except StopIteration:
-            drawer = " "
-        return drawer
+            text = " " + f"\ncategory: {self.category}"
+        return text
+
+    async def handle_other_move(self, other_move):
+        if other_move["type"] == "skip":
+            await self.restart_game()
+
+    async def handle_text_message(self, message:dict):
+        if 'other_move' in message:
+            await self.handle_other_move(message['other_move'])
+        else:
+            print("other text message")
+
+

@@ -40,10 +40,10 @@ async def get_stats(room_id: Optional[str] = None):
     return manager.get_overall_stats()
 
 
-@app.post("/room/new/{room_id}")
-async def end_game(room_id: str):
+@app.post("/room/new/{room_id}/{locale}")
+async def new_room(room_id: str, locale: str):
     try:
-        await manager.create_new_room(room_id)
+        await manager.create_new_room(room_id, locale)
         return JSONResponse(
             status_code=200,
             content={"detail": "success"}
@@ -57,7 +57,7 @@ async def end_game(room_id: str):
 
 
 @app.delete("/room/{room_id}")
-async def end_game(room_id: str):
+async def delete_room(room_id: str):
     try:
         await manager.delete_room(room_id)
         return JSONResponse(
@@ -82,7 +82,7 @@ async def end_game(room_id: str):
 
 
 @app.post("/game/end_all_games")
-async def end_game():
+async def end_games():
     await manager.end_all_games()
     return JSONResponse(
         status_code=200,
@@ -108,7 +108,7 @@ async def restart_game(room_id: str):
     )
 
 
-@app.websocket("/ws/{room_id}/{client_id}/{nick}")  # todo add nick
+@app.websocket("/ws/{room_id}/{client_id}/{nick}")
 async def websocket_endpoint(websocket: WebSocket, room_id: str, client_id: str, nick: str):
     try:
         await manager.connect(websocket, room_id, client_id, nick)
@@ -124,6 +124,12 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, client_id: str,
             await manager.disconnect(websocket)
             print(e)
             print("runetime error")
+        except Exception as e:
+            print(e)
+            print(e.__class__.__name__)
+            print("disconnected")
+            await manager.disconnect(websocket)
+            await manager.broadcast(room_id)
     except PlayerIdAlreadyInUse:
         print(f"Theres already connection with this client id {client_id}")
         await websocket.close(403)
