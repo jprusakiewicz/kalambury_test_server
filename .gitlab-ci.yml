@@ -19,3 +19,13 @@ deploy-development:
         - kubectl rollout restart deployment game-kalambury-backend-dev --namespace=capgemini
     only:
         - main
+
+cleanup-development:
+    image: ubuntu
+    stage: cleanup
+    script:
+        - apt-get update && apt-get install -y curl
+        - curl -v -X POST https://backend-dev.capgemini.enl-projects.com/rooms/sync-rooms-in-game-backend/charades
+        - sleep 2
+    only:
+        - main
