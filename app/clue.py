@@ -9,7 +9,7 @@ class ClueManager:
     def read_clue(self, locale):
         path = ''
         if locale == 'pl':
-            path = 'clues/kalambury_dict_pl.txt'
+            path = './clues/kalambury_dict_pl.txt'
         with open(path, 'rt') as f:
             return json.loads(f.read())
 
