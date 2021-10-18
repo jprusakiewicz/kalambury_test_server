@@ -1,6 +1,8 @@
 import json
 import random
 
+from app.server_errors import LocaleNotSupported
+
 
 class ClueManager:
     def __init__(self, locale):
@@ -10,6 +12,10 @@ class ClueManager:
         path = ''
         if locale == 'pl':
             path = './clues/kalambury_dict_pl.txt'
+        elif locale == 'en':
+            path = './clues/kalambury_dict_en.txt'
+        else:
+            raise LocaleNotSupported
         with open(path, 'rt') as f:
             return json.loads(f.read())
 

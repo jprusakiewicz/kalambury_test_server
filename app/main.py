@@ -6,7 +6,8 @@ from starlette.responses import JSONResponse
 
 from app.connection_manager import ConnectionManager
 from app.models import GuessResult, PlayerGuess
-from app.server_errors import GameNotStarted, PlayerIdAlreadyInUse, NoRoomWithThisId, RoomIdAlreadyInUse
+from app.server_errors import GameNotStarted, PlayerIdAlreadyInUse, NoRoomWithThisId, RoomIdAlreadyInUse, \
+    LocaleNotSupported
 
 app = FastAPI()
 
@@ -52,7 +53,13 @@ async def new_room(room_id: str, locale: str):
         print(f"Theres already a room with this id: {room_id}")
         return JSONResponse(
             status_code=403,
-            content={"detail": "Theres already a room with this id: {room_id}"}
+            content={"detail": f"Theres already a room with this id: {room_id}"}
+        )
+    except LocaleNotSupported:
+        print(f"Locale not supported: {locale}")
+        return JSONResponse(
+            status_code=403,
+            content={"detail": f"Locale not supported: {locale}"}
         )
 
 

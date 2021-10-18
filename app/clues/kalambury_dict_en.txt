@@ -1,0 +1,6 @@
+{
+    "first_category": ["first", "second"],
+    "second_category": ["one", "two"],
+    "third_category": ["1", "2"],
+    "fourth_category": ["a", "b"]
+}

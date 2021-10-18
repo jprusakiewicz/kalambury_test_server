@@ -21,3 +21,8 @@ class NoRoomWithThisId(WsServerError):
 class RoomIdAlreadyInUse(WsServerError):
     def __init__(self):
         self.message = 'Theres already room with this id'
+
+
+class LocaleNotSupported(WsServerError):
+    def __init__(self):
+        self.message = 'Locale not supported'
