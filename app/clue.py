@@ -10,10 +10,8 @@ class ClueManager:
 
     def read_clue(self, locale):
         path = ''
-        if locale == 'pl':
-            path = './clues/kalambury_dict_pl.txt'
-        elif locale == 'en':
-            path = './clues/kalambury_dict_en.txt'
+        if locale in ['pl', 'en', 'es', 'de', 'fr', 'it']:
+            path = './clues/kalambury_dict_' + locale + '.txt'
         else:
             raise LocaleNotSupported
         with open(path, 'rt') as f:
