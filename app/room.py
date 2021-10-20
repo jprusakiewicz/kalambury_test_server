@@ -51,7 +51,11 @@ class Room:
 
         if not self.is_game_on:
             raise GameNotStarted
-        if player_guess.message.lower() == self.clue.lower():
+
+        players_message_stripped = player_guess.message.lower().replace(",", "").replace(".", "")
+        clue_stripped = self.clue.lower().replace(",", "").replace(".", "")
+
+        if players_message_stripped == clue_stripped:
             winning_clue = self.clue
             drawer = str(self.whos_turn)
             await self.restart_game()
@@ -183,10 +187,8 @@ class Room:
         if other_move["type"] == "skip":
             await self.restart_game()
 
-    async def handle_text_message(self, message:dict):
+    async def handle_text_message(self, message: dict):
         if 'other_move' in message:
             await self.handle_other_move(message['other_move'])
         else:
             print("other text message")
-
-
