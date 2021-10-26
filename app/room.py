@@ -100,7 +100,7 @@ class Room:
             game_state = {
                 "is_game_on": self.is_game_on,
                 "whos_turn": self.whos_turn,
-                "sequence_to_guess": self.clue,
+                "sequence_to_guess": self.clue + f" \ncategory: {self.category}",
                 "game_data": self.game_data.decode('ISO-8859-1'),
                 "timestamp": self.timestamp.isoformat(),
             }
