@@ -11,7 +11,7 @@ from fuzzywuzzy import fuzz
 from .clue import ClueManager
 from .connection import Connection
 from .models import PlayerGuess, GuessResult
-from .server_errors import GameNotStarted
+from .server_errors import GameNotStarted, NoPlayerWithThisId
 
 
 class Room:
@@ -37,6 +37,22 @@ class Room:
         self.export_room_status()
         if len(self.active_connections) > 1 and self.is_game_on is False:
             await self.start_game()
+
+    async def kick_player(self, player_id):
+        await self.remove_player_by_id(player_id)
+        self.export_room_status()
+        if len(self.active_connections) <= 1:
+            await self.end_game()
+        elif player_id == self.whos_turn:
+            await self.restart_game()
+
+    async def remove_player_by_id(self, id):
+        try:
+            connection = next(
+                connection for connection in self.active_connections if connection.player.id == id)
+        except StopIteration:
+            raise NoPlayerWithThisId
+        await self.remove_connection(connection)
 
     async def remove_connection(self, connection_with_given_ws):
         self.active_connections.remove(connection_with_given_ws)

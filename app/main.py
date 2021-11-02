@@ -7,7 +7,7 @@ from starlette.responses import JSONResponse
 from app.connection_manager import ConnectionManager
 from app.models import GuessResult, PlayerGuess
 from app.server_errors import GameNotStarted, PlayerIdAlreadyInUse, NoRoomWithThisId, RoomIdAlreadyInUse, \
-    LocaleNotSupported
+    LocaleNotSupported, NoPlayerWithThisId
 
 app = FastAPI()
 
@@ -77,6 +77,26 @@ async def delete_room(room_id: str):
             status_code=403,
             content={"detail": f"Theres no room with this id: {room_id}"}
         )
+
+
+@app.post("/game/kick_player/{room_id}/{player_id}")
+async def kick_player(room_id: str, player_id: str):
+    try:
+        await manager.kick_player(room_id, player_id)
+    except NoRoomWithThisId:
+        return JSONResponse(
+            status_code=403,
+            content={"detail": f"No room with this id: {room_id}"}
+        )
+    except NoPlayerWithThisId:
+        return JSONResponse(
+            status_code=403,
+            content={"detail": f"No player with this id: {room_id}"}
+        )
+    return JSONResponse(
+        status_code=200,
+        content={"detail": "success"}
+    )
 
 
 @app.post("/game/end/{room_id}")

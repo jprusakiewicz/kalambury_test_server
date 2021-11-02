@@ -82,6 +82,10 @@ class ConnectionManager:
                 if connection.ws == websocket:
                     return connection, r
 
+    async def kick_player(self, room_id, player_id):
+        room = self.get_room(room_id)
+        await room.kick_player(player_id)
+
     def validate_client_id(self, room_id: str, client_id: str):
         room = self.get_room(room_id)
         if client_id in [connection.player.id for connection in room.active_connections]:
