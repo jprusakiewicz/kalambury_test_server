@@ -59,7 +59,7 @@ class Room:
         self.export_room_status()
         if len(self.active_connections) <= 1:
             await self.end_game()
-        if connection_with_given_ws.player.id == self.whos_turn:
+        elif connection_with_given_ws.player.id == self.whos_turn:
             await self.restart_game()
 
     async def handle_players_guess(self, player_guess: PlayerGuess, score_thresh=60):
@@ -82,10 +82,11 @@ class Room:
         else:
             return GuessResult(status="MISS")
 
-    async def broadcast_json(self):
+    async def broadcast(self):
         for connection in self.active_connections:
             gs = self.get_game_state(connection.player.id)
             await connection.ws.send_text(gs)
+            await connection.ws.send_bytes(self.game_data)
 
     async def restart_or_end_game(self):
         if len(self.active_connections) >= 2:
@@ -102,14 +103,14 @@ class Room:
         self.is_game_on = True
         self.category, self.clue = self.clue_manager.get_new_clue()
         self.restart_timer()
-        await self.broadcast_json()
+        await self.broadcast()
 
     async def end_game(self):
         self.is_game_on = False
         self.whos_turn = None
         self.clue = None
         self.category = None
-        await self.broadcast_json()
+        await self.broadcast()
 
     def get_game_state(self, client_id) -> str:
         if client_id == self.whos_turn:
@@ -117,7 +118,6 @@ class Room:
                 "is_game_on": self.is_game_on,
                 "whos_turn": self.whos_turn,
                 "sequence_to_guess": self.clue + f" \ncategory: {self.category}",
-                "game_data": self.game_data.decode('ISO-8859-1'),
                 "timestamp": self.timestamp.isoformat(),
             }
         else:
@@ -125,7 +125,6 @@ class Room:
                 "is_game_on": self.is_game_on,
                 "whos_turn": self.whos_turn,
                 "drawer": self.get_guesser_ui_text(),
-                "game_data": self.game_data.decode('ISO-8859-1')
             }
             if self.is_game_on is True:
                 game_state["timestamp"] = self.timestamp.isoformat()
