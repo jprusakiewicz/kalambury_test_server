@@ -27,6 +27,7 @@ class Room:
         self.timeout = 120
         self.timer = threading.Timer(self.timeout, self.next_person_async)
         self.clue_manager = ClueManager(self.locale)
+        self.used_words = []
 
     def next_person_async(self):
         self.export_clue()
@@ -62,16 +63,19 @@ class Room:
         elif connection_with_given_ws.player.id == self.whos_turn:
             await self.restart_game()
 
+    def check_players_clue(self, players_message):
+        players_message_stripped = players_message.lower().replace(",", "").replace(".", "")
+        clue_stripped = self.clue.lower().replace(",", "").replace(".", "")
+        if players_message_stripped == clue_stripped:
+            return True
+
     async def handle_players_guess(self, player_guess: PlayerGuess, score_thresh=60):
         score = fuzz.ratio(player_guess.message, self.clue)
 
         if not self.is_game_on:
             raise GameNotStarted
 
-        players_message_stripped = player_guess.message.lower().replace(",", "").replace(".", "")
-        clue_stripped = self.clue.lower().replace(",", "").replace(".", "")
-
-        if players_message_stripped == clue_stripped:
+        if self.check_players_clue(player_guess.message):
             winning_clue = self.clue
             drawer = str(self.whos_turn)
             await self.restart_game()
