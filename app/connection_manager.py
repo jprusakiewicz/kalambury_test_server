@@ -1,6 +1,6 @@
 import json
 
-from starlette.websockets import WebSocket
+from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from app.connection import Connection
 from app.models import PlayerGuess
@@ -57,7 +57,8 @@ class ConnectionManager:
         for connection in room.active_connections:
             await connection.ws.send_bytes(room.game_data)
 
-    async def handle_ws_message(self, message, room_id, client_id):
+    async def handle_ws_message(self, message: dict, room_id, client_id):
+        self.handle_disconnect_message(message)
         room = self.get_room(room_id)
         try:
             if client_id == room.whos_turn:
@@ -108,3 +109,11 @@ class ConnectionManager:
     async def delete_room(self, room_id):
         room = self.get_room(room_id)
         self.rooms.remove(room)
+
+    def handle_disconnect_message(self, message: dict):
+        # {'type': 'websocket.disconnect', 'code': 1001}
+        try:
+            if message['code'] == 1001:
+                raise WebSocketDisconnect
+        except KeyError:
+            pass
