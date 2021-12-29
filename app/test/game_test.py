@@ -20,6 +20,9 @@ class MyTestCase(unittest.TestCase):
         self.assertTrue(room.check_players_clue("Don't count your chickens before they hatch"))
         self.assertTrue(room.check_players_clue("don't count your Chickens before they Hatch"))
         self.assertTrue(room.check_players_clue("don't count your Chickens ,before they hatch"))
+        self.assertTrue(room.check_players_clue("don't count your Chickens ,before they hatch "))
+        self.assertTrue(room.check_players_clue("don't count your Chickens ,before they hatch  "))
+        self.assertTrue(room.check_players_clue("  don't count your Chickens ,before they hatch   "))
 
 
 if __name__ == '__main__':

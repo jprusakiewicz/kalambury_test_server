@@ -67,7 +67,7 @@ class Room:
 
     def check_players_clue(self, players_message):
         self.logger.info(f"checking players clue: {players_message}")
-        players_message_stripped = players_message.lower().replace(",", "").replace(".", "")
+        players_message_stripped = players_message.lower().replace(",", "").replace(".", "").strip(" ")
         clue_stripped = self.clue.lower().replace(",", "").replace(".", "")
         if players_message_stripped == clue_stripped:
             self.logger.info(f"players clue match: {players_message_stripped}")
