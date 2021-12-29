@@ -10,6 +10,7 @@ from fuzzywuzzy import fuzz
 
 from .clue import ClueManager
 from .connection import Connection
+from .logger import setup_custom_logger
 from .models import PlayerGuess, GuessResult
 from .server_errors import GameNotStarted, NoPlayerWithThisId
 
@@ -28,6 +29,7 @@ class Room:
         self.timer = threading.Timer(self.timeout, self.next_person_async)
         self.clue_manager = ClueManager(self.locale)
         self.used_words = []
+        self.logger = setup_custom_logger(f"room_{self.id}")
 
     def next_person_async(self):
         self.export_clue()
@@ -64,10 +66,14 @@ class Room:
             await self.restart_game()
 
     def check_players_clue(self, players_message):
+        self.logger.info(f"checking players clue: {players_message}")
         players_message_stripped = players_message.lower().replace(",", "").replace(".", "")
         clue_stripped = self.clue.lower().replace(",", "").replace(".", "")
         if players_message_stripped == clue_stripped:
+            self.logger.info(f"players clue match: {players_message_stripped}")
             return True
+        else:
+            self.logger.info(f"players clue mismatch: {players_message_stripped}, clue: {clue_stripped}")
 
     async def handle_players_guess(self, player_guess: PlayerGuess, score_thresh=60):
         score = fuzz.ratio(player_guess.message, self.clue)
@@ -170,12 +176,12 @@ class Room:
                 url=os.path.join(os.getenv('EXPORT_RESULTS_URL'), "/games/handle-timeout/kalambury"),
                 json=dict(roomId=self.id, clue=self.clue))
             if result.status_code == 200:
-                print("timeout export succesfull")
+                self.logger.info("timeout export succesfull")
             else:
-                print("timeout export failed: ", result.text, result.status_code)
+                self.logger.info("timeout export failed: ", result.text, result.status_code)
         except Exception as e:
-            print(e.__class__.__name__)
-            print("failed to get EXPORT_RESULTS_URL env var")
+            self.logger.info(e.__class__.__name__)
+            self.logger.info("failed to get EXPORT_RESULTS_URL env var")
 
     def export_room_status(self):
         try:
@@ -185,12 +191,12 @@ class Room:
                 json=dict(roomId=self.id, activePlayers=players_in_game,
                           currentDrawer=self.whos_turn if self.whos_turn != 0 else None))
             if result.status_code == 200:
-                print("export succesfull")
+                self.logger.info("export succesfull")
             else:
-                print("export failed: ", result.text, result.status_code)
+                self.logger.info("export failed: ", result.text, result.status_code)
         except Exception as e:
-            print(e.__class__.__name__)
-            print("failed to get EXPORT_RESULTS_URL env var")
+            self.logger.info(e.__class__.__name__)
+            self.logger.info("failed to get EXPORT_RESULTS_URL env var")
 
     def get_guesser_ui_text(self):
         try:
@@ -210,4 +216,4 @@ class Room:
         if 'other_move' in message:
             await self.handle_other_move(message['other_move'])
         else:
-            print("other text message")
+            self.logger.info("other text message")

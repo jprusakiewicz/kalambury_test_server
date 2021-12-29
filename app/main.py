@@ -119,7 +119,13 @@ async def end_games():
 
 @app.post("/game/start/{room_id}")
 async def start_game(room_id: str):
-    await manager.start_game(room_id)
+    try:
+        await manager.start_game(room_id)
+    except IndexError:
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "not enough players"}
+        )
     return JSONResponse(
         status_code=200,
         content={"detail": "success"}
